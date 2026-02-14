@@ -1,45 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Zepto Tracker</title>
-  <link rel="stylesheet" href="style.css">
+    <style>
+        body { width: 250px; padding: 15px; font-family: sans-serif; }
+        .box { background: #3d0752; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        h1 { margin: 0; font-size: 32px; }
+        .item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        button { width: 100%; padding: 8px; margin-top: 10px; background: #eee; border: none; cursor: pointer; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>🟣 Zepto Tracker</h2>
+    <div class="box">
+        <h1 id="totalAmount">₹0</h1>
+        <small id="orderCount">0 Orders Tracked</small>
     </div>
     
-    <div class="input-group">
-      <input type="text" id="itemName" placeholder="Item (e.g. Amul Milk)">
-      <div class="row">
-        <input type="number" id="itemPrice" placeholder="₹ Price" step="1">
-        <input type="date" id="itemDate">
-      </div>
-      <button id="addBtn">Add Expense</button>
-      <button id="scanBtn" class="secondary-btn">🔍 Scan Page for Total</button>
-      <p id="scanMsg" class="small-text"></p>
-    </div>
-
-    <div class="stats-container">
-      <div class="stat-box">
-        <h3>Total Spent</h3>
-        <p id="totalSpent" class="big-number">₹0</p>
-      </div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="recent">History</button>
-      <button class="tab-btn" data-tab="top">Top Items</button>
-      <button class="tab-btn" data-tab="monthly">Monthly</button>
-    </div>
-
-    <div id="contentArea" class="list-area">
-      </div>
-
-    <button id="clearData" class="danger-btn">Reset Data</button>
-  </div>
-
-  <script src="popup.js"></script>
+    <h3>Recent Orders</h3>
+    <div id="orderList"></div>
+    
+    <button id="clearBtn">Reset Data</button>
 </body>
 </html>
