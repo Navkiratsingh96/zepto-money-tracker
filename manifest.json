@@ -1,14 +1,24 @@
 {
   "manifest_version": 3,
-  "name": "Zepto Spending Analyzer",
-  "version": "2.1",
-  "description": "Track Zepto grocery expenses.",
-  "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": [
-    "https://www.zeptonow.com/*", 
-    "https://www.zepto.com/*"
-  ],
+  "name": "Zepto Spending Master",
+  "version": "3.0",
+  "description": "Intercepts Zepto's internal API to track spending with 100% accuracy.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.zeptonow.com/*", "*://*.zepto.co.in/*"],
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.zeptonow.com/*", "*://*.zepto.co.in/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
