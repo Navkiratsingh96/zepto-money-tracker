@@ -1,13 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Set default date to today
+  // Set default date
   const dateInput = document.getElementById('itemDate');
   if (dateInput) dateInput.valueAsDate = new Date();
 
   loadData();
 
-  // Button Listeners
+  // Buttons
   document.getElementById('addBtn').addEventListener('click', addExpense);
-  document.getElementById('scanBtn').addEventListener('click', scanPageForTotal);
+  document.getElementById('scanBtn').addEventListener('click', startScan);
   document.getElementById('clearData').addEventListener('click', clearAllData);
   
   // Tabs
@@ -38,85 +38,112 @@ function addExpense() {
   const date = document.getElementById('itemDate').value;
 
   if (!name || isNaN(price) || !date) {
-    alert("Please enter a valid Name, Price, and Date.");
+    alert("Please fill in Name and Price");
     return;
   }
 
   saveExpense({ id: Date.now(), name, price, date });
   
-  // Clear inputs
   document.getElementById('itemName').value = '';
   document.getElementById('itemPrice').value = '';
-  alert("Expense Added!");
+  alert("Saved!");
 }
 
 function saveExpense(expense) {
-  expenses.push(expense);
-  chrome.storage.local.set({ expenses }, () => {
-    updateTotal();
-    renderTab(document.querySelector('.tab-btn.active').dataset.tab);
-  });
+  // Prevent duplicates (simple check based on price and date)
+  const isDuplicate = expenses.some(e => e.price === expense.price && e.date === expense.date);
+  if (!isDuplicate) {
+    expenses.push(expense);
+    chrome.storage.local.set({ expenses }, () => {
+      updateTotal();
+      renderTab('recent');
+    });
+  }
 }
 
-// --- UPDATED SCANNER LOGIC ---
-function scanPageForTotal() {
+// --- NEW SCANNER LOGIC ---
+function startScan() {
   const msg = document.getElementById('scanMsg');
   msg.textContent = "Scanning...";
 
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    // 1. Check if we are on Zepto
-    if(!tabs[0].url.includes("zeptonow")) {
-      alert("DEBUG: This does not look like Zepto. URL: " + tabs[0].url);
-      msg.textContent = "❌ Not Zepto site.";
+    const url = tabs[0].url;
+    
+    // Check for Zepto (now supports zepto.com AND zeptonow.com)
+    if (!url.includes("zepto")) {
+      msg.textContent = "❌ Go to Zepto website first.";
       return;
     }
-    
-    // 2. Inject Script
+
     chrome.scripting.executeScript({
       target: {tabId: tabs[0].id},
-      function: scrapeTotalFromPage
+      function: scrapePage
     }, (results) => {
-      // 3. Handle Errors
       if (chrome.runtime.lastError) {
-        alert("Error: " + chrome.runtime.lastError.message);
+        msg.textContent = "❌ Error: " + chrome.runtime.lastError.message;
         return;
       }
 
       if (results && results[0] && results[0].result) {
-        const foundPrice = results[0].result;
-        document.getElementById('itemPrice').value = foundPrice;
-        document.getElementById('itemName').value = "Zepto Order";
-        msg.textContent = "✅ Found: ₹" + foundPrice;
+        const data = results[0].result;
+        
+        if (data.type === 'single') {
+          // Found one price (Order Detail page)
+          document.getElementById('itemPrice').value = data.price;
+          document.getElementById('itemName').value = "Zepto Order";
+          msg.textContent = "✅ Found: ₹" + data.price;
+        } 
+        else if (data.type === 'list') {
+          // Found MULTIPLE orders (History page)
+          const confirmAdd = confirm(`Found ${data.items.length} orders on this page totaling ₹${data.total}. Add them all?`);
+          if (confirmAdd) {
+            data.items.forEach(item => {
+              saveExpense({ 
+                id: Date.now() + Math.random(), 
+                name: "Zepto Order", 
+                price: item.price, 
+                date: new Date().toISOString().split('T')[0] // Default to today as history dates are hard to parse
+              });
+            });
+            msg.textContent = `✅ Added ${data.items.length} orders!`;
+          } else {
+            msg.textContent = "Cancelled.";
+          }
+        }
       } else {
-        alert("DEBUG: Scanner ran but found NO prices. Try scrolling down the page to ensure the Total is visible, then try again.");
-        msg.textContent = "❌ No price found.";
+        msg.textContent = "❌ No prices found. Scroll down?";
       }
     });
   });
 }
 
-// This runs on the Zepto page
-function scrapeTotalFromPage() {
-  // Method A: Look for text like "Grand Total ₹240"
+// This function runs INSIDE the web page
+function scrapePage() {
   const bodyText = document.body.innerText;
   
-  // Regex to find prices (looks for Rupee symbol or just numbers near 'Total')
-  // Matches: ₹ 123, ₹123, 123.00
-  const regex = /[₹|Rs\.?]\s?(\d{1,5}(\.\d{2})?)/gi;
+  // 1. Find all prices (e.g. ₹249 or ₹ 1,299)
+  const regex = /[₹|Rs\.?]\s?([0-9,]{1,6})/gi;
   const matches = [...bodyText.matchAll(regex)];
   
-  if (matches.length > 0) {
-    // Convert all found strings to Numbers
-    const prices = matches.map(m => parseFloat(m[1].replace(/,/g, ''))); // remove commas
-    
-    // Usually the highest number on the receipt page is the Total
-    const maxPrice = Math.max(...prices);
-    return maxPrice;
+  if (matches.length === 0) return null;
+
+  const prices = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(p => p > 0);
+
+  // Strategy: If we find MANY prices, it's likely the History List.
+  if (prices.length > 3) {
+    // Return all of them (filtering out small numbers like discounts/savings if possible, but taking all for now)
+    // We assume valid orders are usually > 10 rupees
+    const validOrders = prices.filter(p => p > 10);
+    const total = validOrders.reduce((a, b) => a + b, 0);
+    return { type: 'list', items: validOrders.map(p => ({price: p})), total: total };
+  } 
+  else {
+    // If few prices, assume it's a Detail page and take the max (Grand Total)
+    return { type: 'single', price: Math.max(...prices) };
   }
-  return null;
 }
 
-// --- DASHBOARD LOGIC (Same as before) ---
+// --- DASHBOARD ---
 function updateTotal() {
   const total = expenses.reduce((sum, item) => sum + item.price, 0);
   document.getElementById('totalSpent').textContent = '₹' + total.toFixed(0);
@@ -128,19 +155,22 @@ function renderTab(tabName) {
   let html = '';
 
   if (expenses.length === 0) {
-    content.innerHTML = '<p style="text-align:center; color:#999;">No orders tracked yet.</p>';
+    content.innerHTML = '<p style="text-align:center; color:#999;">No data.</p>';
     return;
   }
 
+  // RECENT TAB
   if (tabName === 'recent') {
-    const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...expenses].sort((a, b) => b.id - a.id);
     sorted.forEach(item => html += createRow(item.name, item.price, item.date));
   } 
+  // TOP ITEMS TAB
   else if (tabName === 'top') {
     const sorted = [...expenses].sort((a, b) => b.price - a.price).slice(0, 5);
     html += '<h4>Highest Spends</h4>';
     sorted.forEach(item => html += createRow(item.name, item.price, item.date));
   } 
+  // MONTHLY TAB
   else if (tabName === 'monthly') {
     const groups = expenses.reduce((acc, item) => {
       const month = item.date.substring(0, 7); 
@@ -165,7 +195,7 @@ function createRow(left, price, right) {
 }
 
 function clearAllData() {
-  if(confirm("Delete all Zepto history?")) {
+  if(confirm("Clear all data?")) {
     chrome.storage.local.clear(() => {
       expenses = [];
       updateTotal();
