@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Zepto Spending Analyzer",
-  "version": "2.0",
-  "description": "Track Zepto grocery expenses and analyze top products.",
+  "version": "2.1",
+  "description": "Track Zepto grocery expenses.",
   "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": ["https://www.zeptonow.com/*"],
+  "host_permissions": [
+    "https://www.zeptonow.com/*", 
+    "https://www.zepto.com/*"
+  ],
   "action": {
     "default_popup": "popup.html"
   }
