@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zepto Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>🟣 Zepto Tracker</h2>
+    </div>
+    
+    <div class="input-group">
+      <input type="text" id="itemName" placeholder="Item (e.g. Amul Milk)">
+      <div class="row">
+        <input type="number" id="itemPrice" placeholder="₹ Price" step="1">
+        <input type="date" id="itemDate">
+      </div>
+      <button id="addBtn">Add Expense</button>
+      <button id="scanBtn" class="secondary-btn">🔍 Scan Page for Total</button>
+      <p id="scanMsg" class="small-text"></p>
+    </div>
+
+    <div class="stats-container">
+      <div class="stat-box">
+        <h3>Total Spent</h3>
+        <p id="totalSpent" class="big-number">₹0</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="recent">History</button>
+      <button class="tab-btn" data-tab="top">Top Items</button>
+      <button class="tab-btn" data-tab="monthly">Monthly</button>
+    </div>
+
+    <div id="contentArea" class="list-area">
+      </div>
+
+    <button id="clearData" class="danger-btn">Reset Data</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
